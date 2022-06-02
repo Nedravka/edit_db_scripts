@@ -14,12 +14,12 @@ def check_input_data(schoolkid_name, subject=None):
         return print('Предмета с таким названием не существует, проверьте написание')
 
 
-def fix_marks(schoolkid_name='Фролов Иван'):
+def fix_marks(schoolkid_name='Фролов Иван', low_point_bound=4, point_to_update=5):
     if not check_input_data(schoolkid_name):
         return
     schoolkid = Schoolkid.objects.get(full_name__contains=schoolkid_name)
-    mark = Mark.objects.filter(schoolkid=schoolkid, points__lt=4)
-    mark.update(points=5)
+    mark = Mark.objects.filter(schoolkid=schoolkid, points__lt=low_point_bound)
+    mark.update(points=point_to_update)
 
 
 def remove_chastisements(schoolkid_name='Фролов Иван'):
