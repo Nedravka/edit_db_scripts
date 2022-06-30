@@ -9,10 +9,7 @@ from datacenter.models import (
 from random import choice
 
 
-SERIALIZE_SCHOOLKIDS = list(Schoolkid.objects.all())
-
-
-def processing_errors_input_data(foo):
+def catch_errors_processing_input_data(foo):
     def wprapped_foo(*args, **kwargs):
         try:
             foo(*args, **kwargs)
@@ -21,59 +18,54 @@ def processing_errors_input_data(foo):
         except Schoolkid.DoesNotExist:
             print(
                 'Такого ученика не существует, '
-                'проверьте правльность написания входных данных'
+                'проверьте правльность написания ФИО'
             )
         except Schoolkid.MultipleObjectsReturned:
             print(
                 'Найдено несколько учеников с '
-                'таким именем/фамилией, уточните данные'
+                'таким ФИО, уточните данные'
             )
     return wprapped_foo
 
 
-def check_exists_schoolkid(kid):
-    if len(kid) > 1:
-        raise Schoolkid.MultipleObjectsReturned
-    if len(kid) == 0:
-        raise Schoolkid.DoesNotExist
-
-
-@processing_errors_input_data
+@catch_errors_processing_input_data
 def fix_marks(
-        low_bound_point=4,
+        low_bound_point=3,
         schoolkid_name='Фролов Иван',
-        needed_points=5
+        needed_points=55
 ):
-    kid = [schoolkid for schoolkid in SERIALIZE_SCHOOLKIDS if
-           schoolkid_name in schoolkid.full_name]
 
-    check_exists_schoolkid(kid)
+    schoolkid = Schoolkid.objects.get(full_name__contains=schoolkid_name)
 
     update_bad_marks = Mark.objects.filter(
-        schoolkid=kid[0],
+        schoolkid=schoolkid,
         points__lt=low_bound_point
     ).update(
         points=needed_points
     )
 
 
-@processing_errors_input_data
+@catch_errors_processing_input_data
 def remove_chastisements(schoolkid_name='Фролов Иван'):
 
-    kid = [schoolkid for schoolkid in SERIALIZE_SCHOOLKIDS if
-           schoolkid_name in schoolkid.full_name]
+    schoolkid = Schoolkid.objects.values(
+        'id'
+    ).get(
+        full_name__contains=schoolkid_name
+    )
 
-    check_exists_schoolkid(kid)
-
-    delete_kid_chastisment = Chastisement.objects.select_related(
-        'schoolkid'
-    ).filter(
-        schoolkid=kid[0]
+    delete_chastisements_of_schoolkid = Chastisement.objects.filter(
+        schoolkid__id=schoolkid.get('id')
     ).delete()
 
 
-@processing_errors_input_data
-def create_commendation(schoolkid_name='Фролов Иван', subject='Музыка'):
+@catch_errors_processing_input_data
+def create_commendation(
+        schoolkid_name='Фролов Иван',
+        subject='Музыка'
+):
+
+    schoolkid = Schoolkid.objects.get(full_name__contains=schoolkid_name)
 
     variants_of_commendations = [
         'Молодец!', 'Отлично!', 'Хорошо!', 'Гораздо лучше, чем я ожидал!',
@@ -91,30 +83,26 @@ def create_commendation(schoolkid_name='Фролов Иван', subject='Муз�
         'Теперь у тебя точно все получится!'
     ]
 
-    kid = [schoolkid for schoolkid in SERIALIZE_SCHOOLKIDS if
-           schoolkid_name in schoolkid.full_name]
-
-    check_exists_schoolkid(kid)
-
     serialize_lessons = Lesson.objects.select_related(
+        'subject__id',
+        'teacher_id'
+    ).values(
         'subject',
-        'teacher'
-    ).order_by('date')
+        'teacher',
+        'date',
+        'subject__year_of_study'
+    ).filter(
+        subject__year_of_study=schoolkid.year_of_study,
+        subject__title=subject
+    ).order_by('date').last()
 
-    needed_lesson = [lesson for lesson in serialize_lessons if
-                     (subject == lesson.subject.title and
-                      kid[0].year_of_study == lesson.subject.year_of_study and
-                      kid[0].group_letter == lesson.group_letter)]
-
-    if not needed_lesson:
+    if not serialize_lessons:
         raise Subject.DoesNotExist
 
-    last_lesson = needed_lesson[-1]
-
-    Commendation.objects.create(
+    create_commendation_to_schoolkid = Commendation.objects.create(
         text=choice(variants_of_commendations),
-        created=last_lesson.date,
-        schoolkid=kid[0],
-        subject=last_lesson.subject,
-        teacher=last_lesson.teacher
+        created=serialize_lessons.get('date'),
+        schoolkid=schoolkid,
+        teacher_id=serialize_lessons.get('teacher'),
+        subject_id=serialize_lessons.get('subject')
         )
