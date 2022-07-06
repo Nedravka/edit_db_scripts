@@ -32,7 +32,7 @@ def catch_errors_processing_input_data(foo):
 def fix_marks(
         low_bound_point=3,
         schoolkid_name='Фролов Иван',
-        needed_points=55
+        needed_points=5
 ):
 
     schoolkid = Schoolkid.objects.get(full_name__contains=schoolkid_name)
@@ -48,14 +48,12 @@ def fix_marks(
 @catch_errors_processing_input_data
 def remove_chastisements(schoolkid_name='Фролов Иван'):
 
-    schoolkid = Schoolkid.objects.values(
-        'id'
-    ).get(
+    schoolkid = Schoolkid.objects.get(
         full_name__contains=schoolkid_name
     )
 
     delete_chastisements_of_schoolkid = Chastisement.objects.filter(
-        schoolkid__id=schoolkid.get('id')
+        schoolkid=schoolkid
     ).delete()
 
 
@@ -84,13 +82,8 @@ def create_commendation(
     ]
 
     serialize_lessons = Lesson.objects.select_related(
-        'subject__id',
-        'teacher_id'
-    ).values(
         'subject',
-        'teacher',
-        'date',
-        'subject__year_of_study'
+        'teacher'
     ).filter(
         subject__year_of_study=schoolkid.year_of_study,
         subject__title=subject
@@ -101,8 +94,8 @@ def create_commendation(
 
     create_commendation_to_schoolkid = Commendation.objects.create(
         text=choice(variants_of_commendations),
-        created=serialize_lessons.get('date'),
+        created=serialize_lessons.date,
         schoolkid=schoolkid,
-        teacher_id=serialize_lessons.get('teacher'),
-        subject_id=serialize_lessons.get('subject')
+        subject=serialize_lessons.subject,
+        teacher=serialize_lessons.teacher,
         )
