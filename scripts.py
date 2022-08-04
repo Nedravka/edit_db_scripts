@@ -9,26 +9,6 @@ from datacenter.models import (
 from random import choice
 
 
-def catch_errors_processing_input_data(foo):
-    def wprapped_foo(*args, **kwargs):
-        try:
-            foo(*args, **kwargs)
-        except Subject.DoesNotExist:
-            print('Проверьте написание названия предмета')
-        except Schoolkid.DoesNotExist:
-            print(
-                'Такого ученика не существует, '
-                'проверьте правльность написания ФИО'
-            )
-        except Schoolkid.MultipleObjectsReturned:
-            print(
-                'Найдено несколько учеников с '
-                'таким ФИО, уточните данные'
-            )
-    return wprapped_foo
-
-
-@catch_errors_processing_input_data
 def fix_marks(
         low_bound_point=3,
         schoolkid_name='Фролов Иван',
@@ -45,7 +25,6 @@ def fix_marks(
     )
 
 
-@catch_errors_processing_input_data
 def remove_chastisements(schoolkid_name='Фролов Иван'):
 
     schoolkid = Schoolkid.objects.get(
@@ -57,7 +36,6 @@ def remove_chastisements(schoolkid_name='Фролов Иван'):
     ).delete()
 
 
-@catch_errors_processing_input_data
 def create_commendation(
         schoolkid_name='Фролов Иван',
         subject='Музыка'
