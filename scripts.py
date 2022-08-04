@@ -7,6 +7,37 @@ from datacenter.models import (
     Subject,
 )
 from random import choice
+from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
+
+
+def get_schoolkid(schoolkid_name):
+    try:
+        schoolkid = Schoolkid.objects.get(full_name__contains=schoolkid_name)
+        return schoolkid
+
+    except Schoolkid.DoesNotExist:
+        raise ObjectDoesNotExist(
+            'Такого ученика не существует,'
+            'проверьте написание имени/фамилии')
+
+    except Schoolkid.MultipleObjectsReturned:
+        raise MultipleObjectsReturned(
+            'Найдено несколько учеников с таким именем/фамилией, '
+            'уточните данные')
+
+
+def get_subject(subject, schoolkid):
+    try:
+
+        return Subject.objects.get(
+            title=subject,
+            year_of_study=schoolkid.year_of_study
+        )
+
+    except Subject.DoesNotExist:
+        raise ObjectDoesNotExist(
+            'Предмета с таким названием не существует,'
+            ' проверьте написание')
 
 
 def fix_marks(
@@ -15,7 +46,7 @@ def fix_marks(
         needed_points=5
 ):
 
-    schoolkid = Schoolkid.objects.get(full_name__contains=schoolkid_name)
+    schoolkid = get_schoolkid(schoolkid_name)
 
     update_bad_marks = Mark.objects.filter(
         schoolkid=schoolkid,
@@ -27,9 +58,7 @@ def fix_marks(
 
 def remove_chastisements(schoolkid_name='Фролов Иван'):
 
-    schoolkid = Schoolkid.objects.get(
-        full_name__contains=schoolkid_name
-    )
+    schoolkid = get_schoolkid(schoolkid_name)
 
     delete_chastisements_of_schoolkid = Chastisement.objects.filter(
         schoolkid=schoolkid
@@ -38,10 +67,12 @@ def remove_chastisements(schoolkid_name='Фролов Иван'):
 
 def create_commendation(
         schoolkid_name='Фролов Иван',
-        subject='Музыка'
+        subject_name='Музыка'
 ):
 
-    schoolkid = Schoolkid.objects.get(full_name__contains=schoolkid_name)
+    schoolkid = get_schoolkid(schoolkid_name)
+
+    subject = get_subject(subject_name, schoolkid)
 
     variants_of_commendations = [
         'Молодец!', 'Отлично!', 'Хорошо!', 'Гораздо лучше, чем я ожидал!',
@@ -64,11 +95,8 @@ def create_commendation(
         'teacher'
     ).filter(
         subject__year_of_study=schoolkid.year_of_study,
-        subject__title=subject
+        subject=subject
     ).order_by('date').last()
-
-    if not serialize_lessons:
-        raise Subject.DoesNotExist
 
     create_commendation_to_schoolkid = Commendation.objects.create(
         text=choice(variants_of_commendations),
